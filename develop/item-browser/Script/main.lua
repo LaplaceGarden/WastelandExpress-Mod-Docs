@@ -11,6 +11,11 @@ local records = {}
 local state = core.createState(records)
 
 local categories = { "全部", "物品", "食物", "装备", "配件" }
+local browserButtonSize = 92
+local browserButtonGap = 14
+local browserButtonTop = 8
+local browserButtonRightPadding = 8
+local existingTopRightButtonCount = 3
 
 local function log_once(key, message)
     if providerErrors[key] then
@@ -120,6 +125,13 @@ local function current_screen(UnityEngine)
         height = screen.height or height
     end
     return width, height
+end
+
+local function browser_button_rect(screenWidth)
+    local reservedWidth = browserButtonSize * (existingTopRightButtonCount + 1)
+        + browserButtonGap * existingTopRightButtonCount
+    local x = screenWidth - browserButtonRightPadding - reservedWidth
+    return math.max(10, x), browserButtonTop, browserButtonSize, browserButtonSize
 end
 
 local function find_selected(filtered)
@@ -269,34 +281,24 @@ local function draw_detail(GUI, Rect, x, y, width, height, filtered)
     end
 end
 
-local function draw_window(windowId)
-    local UnityEngine = unity()
-    if not UnityEngine then
-        return
-    end
-
-    local GUI = UnityEngine.GUI
-    local Rect = function(x, y, width, height)
-        return make_rect(UnityEngine, x, y, width, height)
-    end
-
+local function draw_window(GUI, Rect, windowX, windowY, outerWidth, outerHeight)
     local width = 780
     local height = 520
-    GUI.Label(Rect(16, 22, 160, 24), "物品图鉴")
-    draw_mode_buttons(GUI, Rect, width - 212, 18)
-    draw_top_bar(GUI, Rect, 16, 52, width - 32)
+    local contentX = windowX + math.floor((outerWidth - width) / 2)
+    local contentY = windowY + math.floor((outerHeight - height) / 2)
+
+    GUI.Box(Rect(windowX, windowY, outerWidth, outerHeight), "")
+    GUI.Label(Rect(contentX + 16, contentY + 22, 160, 24), "物品图鉴")
+    draw_mode_buttons(GUI, Rect, contentX + width - 212, contentY + 18)
+    draw_top_bar(GUI, Rect, contentX + 16, contentY + 52, width - 32)
 
     local filtered = core.getFilteredRecords(state)
     if #filtered == 0 then
-        GUI.Label(Rect(16, 95, width - 32, 32), "没有找到匹配物品")
+        GUI.Label(Rect(contentX + 16, contentY + 95, width - 32, 32), "没有找到匹配物品")
     elseif state.mode == "detail" then
-        draw_detail(GUI, Rect, 16, 92, width - 32, height - 108, filtered)
+        draw_detail(GUI, Rect, contentX + 16, contentY + 92, width - 32, height - 108, filtered)
     else
-        draw_simple(GUI, Rect, 16, 92, width - 32, height - 108, filtered)
-    end
-
-    if GUI.DragWindow then
-        GUI.DragWindow()
+        draw_simple(GUI, Rect, contentX + 16, contentY + 92, width - 32, height - 108, filtered)
     end
 end
 
@@ -314,13 +316,13 @@ function OnGUI()
     end
 
     local screenWidth, _ = current_screen(UnityEngine)
-    if state.buttonVisible and GUI.Button(Rect(screenWidth - 112, 90, 96, 28), "物品图鉴") then
+    local buttonX, buttonY, buttonWidth, buttonHeight = browser_button_rect(screenWidth)
+    if state.buttonVisible and GUI.Button(Rect(buttonX, buttonY, buttonWidth, buttonHeight), "物品\n图鉴") then
         ItemBrowser_Toggle()
     end
 
     if state.windowVisible then
-        local windowRect = Rect(math.max(10, screenWidth - 820), 130, 800, 540)
-        GUI.Window(902528, windowRect, draw_window, "物品图鉴")
+        draw_window(GUI, Rect, math.max(10, screenWidth - 820), 130, 800, 540)
     end
 
     return false
